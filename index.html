@@ -1,0 +1,820 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#1E1420">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>our history</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;1,500;1,600&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg: #1E1420;
+    --bg-soft: #2A1B2E;
+    --surface: #33212F;
+    --surface-2: #3B2636;
+    --blush: #E7B7BE;
+    --gold: #C89B5C;
+    --gold-soft: #D9B67C;
+    --cream: #F6ECE6;
+    --mauve: #9C7E8C;
+    --mauve-dim: #6E5462;
+    --shadow: rgba(10,4,10,0.45);
+    --safe-top: env(safe-area-inset-top, 0px);
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  *{ box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+  html, body{
+    margin:0; padding:0; height:100%;
+    background: var(--bg);
+    overscroll-behavior: none;
+  }
+
+  body{
+    font-family:'Manrope', sans-serif;
+    color: var(--cream);
+    height:100dvh;
+    overflow:hidden;
+    position:relative;
+    -webkit-font-smoothing:antialiased;
+    user-select:none;
+  }
+
+  #app{
+    position:relative;
+    height:100%;
+    width:100%;
+    max-width:520px;
+    margin:0 auto;
+    background:
+      radial-gradient(120% 60% at 50% 0%, var(--bg-soft) 0%, var(--bg) 55%);
+    overflow:hidden;
+    box-shadow: 0 0 60px var(--shadow);
+  }
+
+  /* ---------- ambient particles ---------- */
+  .rays{
+    position:absolute; inset:0;
+    z-index:0;
+    overflow:hidden;
+    pointer-events:none;
+  }
+  .ray{
+    position:absolute;
+    top:-35%;
+    left:50%;
+    width: var(--rw, 130px);
+    height:170%;
+    background: linear-gradient(to bottom, rgba(140,203,158, var(--ro,0.13)), rgba(140,203,158,0.03) 55%, transparent 78%);
+    transform-origin: top center;
+    transform: translateX(-50%) rotate(var(--rr, -20deg));
+    filter: blur(16px);
+    mix-blend-mode: screen;
+    animation: raysway var(--rd, 26s) ease-in-out infinite alternate;
+  }
+  @keyframes raysway{
+    from{ transform: translateX(-50%) rotate(var(--rr, -20deg)); }
+    to{ transform: translateX(-50%) rotate(calc(var(--rr, -20deg) + 5deg)); }
+  }
+  @media (prefers-reduced-motion: reduce){ .ray{ animation: none; } }
+
+  .ambient{
+    position:absolute; inset:0;
+    pointer-events:none;
+    z-index:1;
+    overflow:hidden;
+  }
+  .petal{
+    position:absolute;
+    bottom:-40px;
+    width: var(--s, 10px);
+    height: var(--s, 10px);
+    border-radius: 60% 40% 55% 45% / 50% 60% 40% 50%;
+    background: radial-gradient(circle at 30% 30%, var(--blush), transparent 70%);
+    opacity: 0;
+    filter: blur(0.3px);
+    animation: drift var(--dur,14s) linear infinite;
+    animation-delay: var(--delay, 0s);
+  }
+  @keyframes drift{
+    0%{ transform: translateY(0) translateX(0) rotate(0deg); opacity:0; }
+    8%{ opacity: var(--op,0.55); }
+    92%{ opacity: var(--op,0.55); }
+    100%{ transform: translateY(-115vh) translateX(var(--sway,30px)) rotate(180deg); opacity:0; }
+  }
+
+  .statusbar-spacer{ height: calc(var(--safe-top) + 6px); position:relative; z-index:2;}
+
+  /* ---------- screens ---------- */
+  .screens{
+    position:relative;
+    height: calc(100% - 78px - var(--safe-top) - var(--safe-bottom));
+    z-index:2;
+  }
+  .screen{
+    position:absolute; inset:0;
+    padding: 18px 22px 28px;
+    overflow-y:auto;
+    opacity:0;
+    transform: translateX(24px) scale(0.98);
+    pointer-events:none;
+    transition: opacity .5s cubic-bezier(.22,.61,.36,1), transform .5s cubic-bezier(.22,.61,.36,1);
+  }
+  .screen.active{
+    opacity:1;
+    transform: translateX(0) scale(1);
+    pointer-events:auto;
+  }
+  .screen.leaving{
+    transform: translateX(-24px) scale(0.98);
+  }
+  @media (prefers-reduced-motion: reduce){
+    .screen{ transition: opacity .25s linear; transform:none !important; }
+    .petal{ animation-duration: 30s; }
+  }
+
+  .eyebrow{
+    font-size:11px;
+    letter-spacing:.18em;
+    text-transform:uppercase;
+    color: var(--mauve);
+    font-weight:600;
+    margin: 0 0 10px;
+  }
+
+  /* ---------- HOME ---------- */
+  #screen-home{
+    display:flex;
+    flex-direction:column;
+    justify-content:center;
+    align-items:center;
+    text-align:center;
+    height:100%;
+  }
+  .home-names{
+    font-family:'Cormorant Garamond', serif;
+    font-style: italic;
+    font-weight:600;
+    font-size: 52px;
+    line-height:1.05;
+    margin: 6px 0 14px;
+    color: var(--cream);
+  }
+  .home-amp{ color: var(--gold-soft); font-size: 0.7em; padding: 0 6px; }
+  .home-date{
+    font-size:13px;
+    color: var(--mauve);
+    letter-spacing:.06em;
+    margin-bottom: 26px;
+  }
+  .home-quote{
+    font-family:'Cormorant Garamond', serif;
+    font-style:italic;
+    font-size:19px;
+    line-height:1.55;
+    color: var(--blush);
+    max-width: 320px;
+    margin: 0 auto;
+  }
+  .home-ring{
+    width:88px; height:88px;
+    border-radius:50%;
+    border:1px solid var(--mauve-dim);
+    display:flex; align-items:center; justify-content:center;
+    margin-bottom: 22px;
+    position:relative;
+  }
+  .home-ring::before{
+    content:'';
+    position:absolute; inset:-8px;
+    border-radius:50%;
+    border:1px solid var(--surface-2);
+  }
+  .home-ring svg{ width:34px; height:34px; }
+
+  /* ---------- PHOTOS ---------- */
+  .screen-title{
+    font-family:'Cormorant Garamond', serif;
+    font-style:italic;
+    font-size: 30px;
+    font-weight:600;
+    margin: 0 0 4px;
+  }
+  .screen-sub{
+    font-size:13px;
+    color: var(--mauve);
+    margin-bottom: 20px;
+  }
+  .photo-grid{
+    display:grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+    padding-bottom: 20px;
+  }
+  .photo-frame{
+    aspect-ratio: 4/5;
+    background: var(--surface);
+    border-radius: 14px;
+    border: 1.5px dashed var(--mauve-dim);
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    gap:8px;
+    color: var(--mauve);
+    font-size:12px;
+    text-align:center;
+    padding: 10px;
+    transform: rotate(var(--rot, 0deg));
+    background-size: cover;
+    background-position:center;
+    /* Чтобы вставить фото: замените фон ниже на url('ваше_фото.jpg')
+       и уберите класс "empty" у соответствующего .photo-frame */
+  }
+  .photo-frame:nth-child(4n+1){ --rot: -2deg; }
+  .photo-frame:nth-child(4n+2){ --rot: 1.5deg; }
+  .photo-frame:nth-child(4n+3){ --rot: -1.5deg; }
+  .photo-frame:nth-child(4n){ --rot: 1deg; }
+  .photo-frame.wide{ grid-column: 1 / span 2; aspect-ratio: 16/10; }
+  .photo-grid{ padding-bottom: 40px; }
+  .photo-frame .plus{
+    width:30px; height:30px;
+    border-radius:50%;
+    border:1px solid var(--mauve-dim);
+    display:flex; align-items:center; justify-content:center;
+    font-size:16px;
+    color: var(--gold-soft);
+  }
+
+  /* ---------- MUSIC ---------- */
+  .player-wrap{
+    display:flex; flex-direction:column; align-items:center;
+    padding-top: 10px;
+  }
+  .vinyl{
+    width:180px; height:180px;
+    border-radius:50%;
+    background:
+      radial-gradient(circle at 50% 50%, var(--surface-2) 0 18%, #150D17 19% 30%, var(--surface-2) 31% 60%, #150D17 61% 100%);
+    display:flex; align-items:center; justify-content:center;
+    margin: 10px 0 26px;
+    box-shadow: 0 14px 30px var(--shadow);
+    animation: spin 9s linear infinite;
+    animation-play-state: paused;
+  }
+  .vinyl.playing{ animation-play-state: running; }
+  .vinyl-center{
+    width:56px; height:56px;
+    border-radius:50%;
+    background: radial-gradient(circle at 35% 35%, var(--gold-soft), var(--gold) 70%);
+  }
+  @keyframes spin{ to{ transform: rotate(360deg); } }
+
+  .track-title{
+    font-family:'Cormorant Garamond', serif;
+    font-style:italic;
+    font-size:24px;
+    margin-bottom:4px;
+  }
+  .track-artist{ font-size:13px; color: var(--mauve); margin-bottom:22px; }
+
+  .progress{
+    width:100%;
+    height:3px;
+    background: var(--surface-2);
+    border-radius:2px;
+    overflow:hidden;
+    margin-bottom: 22px;
+  }
+  .progress-fill{
+    height:100%;
+    width: 0%;
+    background: linear-gradient(90deg, var(--gold), var(--blush));
+    transition: width .3s linear;
+  }
+
+  .controls{
+    display:flex; align-items:center; gap: 26px;
+  }
+  .ctrl-btn{
+    background:none; border:none; color: var(--cream);
+    display:flex; align-items:center; justify-content:center;
+    cursor:pointer; padding:6px;
+  }
+  .ctrl-btn svg{ width:20px; height:20px; opacity:.85; }
+  .play-btn{
+    width:58px; height:58px;
+    border-radius:50%;
+    background: linear-gradient(145deg, var(--gold-soft), var(--gold));
+    display:flex; align-items:center; justify-content:center;
+    box-shadow: 0 8px 20px rgba(200,155,92,0.35);
+  }
+  .play-btn svg{ width:22px; height:22px; fill: var(--bg); }
+
+  .music-note{
+    margin-top: 18px;
+    font-size:12px;
+    color: var(--mauve-dim);
+    text-align:center;
+    line-height:1.5;
+  }
+
+  .time-row{
+    display:flex; justify-content:space-between;
+    width:100%;
+    font-size:10.5px;
+    color: var(--mauve-dim);
+    margin-top:-16px;
+    margin-bottom: 20px;
+  }
+
+  .playlist-panel{
+    width:100%;
+    margin-top: 26px;
+  }
+  .playlist-head{
+    display:flex; align-items:center; justify-content:space-between;
+    margin-bottom: 10px;
+  }
+  .upload-btn{
+    font-size:11px;
+    letter-spacing:.04em;
+    color: var(--gold-soft);
+    border:1px dashed var(--mauve-dim);
+    border-radius: 20px;
+    padding: 7px 14px;
+    cursor:pointer;
+    white-space:nowrap;
+  }
+  .upload-btn:active{ transform: scale(0.97); }
+  .playlist-list{
+    list-style:none;
+    margin:0; padding:0;
+    display:flex; flex-direction:column; gap:6px;
+    max-height: 160px;
+    overflow-y:auto;
+  }
+  .playlist-empty{
+    font-size:12.5px;
+    color: var(--mauve-dim);
+    font-style:italic;
+    padding: 10px 2px;
+  }
+  .playlist-item{
+    display:flex; align-items:center; gap:10px;
+    padding: 9px 12px;
+    border-radius: 12px;
+    background: var(--surface);
+    font-size:13px;
+    color: var(--cream);
+    cursor:pointer;
+  }
+  .playlist-item.active{
+    background: var(--surface-2);
+    color: var(--gold-soft);
+  }
+  .playlist-item .pl-index{
+    font-size:11px; color: var(--mauve); min-width:14px;
+  }
+  .playlist-item .pl-name{
+    flex:1;
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  }
+
+  /* ---------- LETTER / TIMELINE ---------- */
+  .timeline{ position:relative; padding-left: 22px; margin-top: 6px; }
+  .timeline::before{
+    content:'';
+    position:absolute; left:5px; top:6px; bottom:6px;
+    width:1px;
+    background: var(--surface-2);
+  }
+  .tl-item{ position:relative; padding-bottom: 26px; }
+  .tl-dot{
+    position:absolute; left:-22px; top:3px;
+    width:10px; height:10px; border-radius:50%;
+    background: var(--gold-soft);
+    box-shadow: 0 0 0 4px var(--bg-soft);
+  }
+  .tl-date{
+    font-size:11px; letter-spacing:.1em; text-transform:uppercase;
+    color: var(--mauve); margin-bottom:6px; font-weight:600;
+  }
+  .tl-text{ font-size:14.5px; line-height:1.6; color: var(--cream); opacity:.92; }
+  .tl-text.placeholder{ color: var(--mauve-dim); font-style:italic; }
+
+  .letter-sign{
+    margin-top: 10px;
+    font-family:'Cormorant Garamond', serif;
+    font-style:italic;
+    font-size:20px;
+    color: var(--blush);
+    text-align:right;
+    padding-right: 4px;
+  }
+
+  /* ---------- TAB BAR ---------- */
+  .tabbar{
+    position:absolute;
+    left:0; right:0; bottom:0;
+    height: calc(78px + var(--safe-bottom));
+    padding-bottom: var(--safe-bottom);
+    background: rgba(30,20,32,0.82);
+    backdrop-filter: blur(14px);
+    border-top: 1px solid rgba(255,255,255,0.06);
+    display:flex;
+    z-index:3;
+  }
+  .tab{
+    flex:1;
+    background:none; border:none;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    gap:5px;
+    color: var(--mauve-dim);
+    font-family:'Manrope', sans-serif;
+    font-size:10.5px;
+    letter-spacing:.03em;
+    padding-top: 10px;
+    cursor:pointer;
+    transition: color .3s ease;
+  }
+  .tab svg{ width:20px; height:20px; transition: transform .3s cubic-bezier(.34,1.56,.64,1); }
+  .tab.active{ color: var(--cream); }
+  .tab.active svg{ transform: translateY(-2px); }
+
+  .tab-seal{
+    position:absolute;
+    top: 2px;
+    width: 40px; height: 40px;
+    border-radius: 60% 40% 55% 45% / 45% 55% 45% 55%;
+    background: linear-gradient(150deg, var(--gold-soft), var(--gold));
+    box-shadow: 0 6px 16px rgba(200,155,92,0.4);
+    transition: left .38s cubic-bezier(.22,.61,.36,1), border-radius .38s ease;
+    z-index:-1;
+    opacity:0.16;
+  }
+
+  ::-webkit-scrollbar{ display:none; }
+</style>
+</head>
+<body>
+
+<div id="app">
+  <div class="rays" id="rays"></div>
+  <div class="ambient" id="ambient"></div>
+
+  <div class="statusbar-spacer"></div>
+
+  <main class="screens">
+
+    <!-- ЭКРАН 1: ГЛАВНАЯ -->
+    <section class="screen active" data-screen="home">
+      <div id="screen-home">
+        <div class="home-ring">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#D9B67C" stroke-width="1.3">
+            <path d="M12 20s-7.5-4.6-9.8-9C.6 7.8 2.6 4.6 6 4.4c2 -.1 3.6 1 4.5 2.4C11.4 5.4 13 4.3 15 4.4c3.4.2 5.4 3.4 3.8 6.6C16.5 15.4 12 20 12 20z"/>
+          </svg>
+        </div>
+        <div class="eyebrow">Наша история</div>
+        <div class="home-names">Moral <span class="home-amp">&amp;</span> Navita</div>
+        <div class="home-date">вместе с 12.06.2026</div>
+        <p class="home-quote">«Муд: муж жена завод 4 дауна<br>смотрим пиво до конца смерти))»</p>
+      </div>
+    </section>
+
+    <!-- ЭКРАН 2: ФОТО -->
+    <section class="screen" data-screen="photos">
+      <div class="eyebrow">Ьлчтб?</div>
+      <h1 class="screen-title">ФотОчки</h1>
+      <p class="screen-sub">к сожалению они еще в разработке. как только мне выделят доп комп для этого, так сразу сделаю))))</p>
+      <div class="photo-grid">
+        <div class="photo-frame empty"><div class="plus">+</div>Фото 1</div>
+        <div class="photo-frame empty"><div class="plus">+</div>Фото 2</div>
+        <div class="photo-frame empty"><div class="plus">+</div>Фото 3</div>
+        <div class="photo-frame empty"><div class="plus">+</div>Фото 4</div>
+        <div class="photo-frame empty wide"><div class="plus">+</div>Общее фото</div>
+        <div class="photo-frame empty"><div class="plus">+</div>Фото 5</div>
+        <div class="photo-frame empty"><div class="plus">+</div>Фото 6</div>
+        <div class="photo-frame empty"><div class="plus">+</div>Фото 7</div>
+        <div class="photo-frame empty"><div class="plus">+</div>Фото 8</div>
+        <div class="photo-frame empty wide"><div class="plus">+</div>Общее фото</div>
+        <div class="photo-frame empty"><div class="plus">+</div>Фото 9</div>
+        <div class="photo-frame empty"><div class="plus">+</div>Фото 10</div>
+        <div class="photo-frame empty"><div class="plus">+</div>Фото 11</div>
+        <div class="photo-frame empty"><div class="plus">+</div>Фото 12</div>
+      </div>
+    </section>
+
+    <!-- ЭКРАН 3: МУЗЫКА -->
+    <section class="screen" data-screen="music">
+      <div class="eyebrow"></div>
+      <h1 class="screen-title">Треки</h1>
+      <div class="player-wrap">
+        <p class="letter-sign">я решил сюда прикрутить еще и плеер с музычкой, дабы в тяжелые времена ты могла найти меня в этих треках)</p>
+        <audio id="audio"></audio>
+        <div class="vinyl" id="vinyl"><div class="vinyl-center"></div></div>
+        <div class="track-title" id="trackTitle">Название</div>
+        <div class="track-artist" id="trackArtist">чел который играет</div>
+        <div class="progress" id="progressBar"><div class="progress-fill" id="progressFill"></div></div>
+        <div class="time-row"><span id="timeCurrent">0:00</span><span id="timeTotal">0:00</span></div>
+        <div class="controls">
+          <button class="ctrl-btn" id="prevBtn" aria-label="Предыдущий трек">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 6h2v12H6zM20 6v12l-8.5-6z"/></svg>
+          </button>
+          <button class="play-btn" id="playBtn" aria-label="Играть">
+            <svg id="playIcon" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+          </button>
+          <button class="ctrl-btn" id="nextBtn" aria-label="Следующий трек">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M16 6h2v12h-2zM4 6v12l8.5-6z"/></svg>
+          </button>
+        </div>
+
+        <div class="playlist-panel">
+          <div class="playlist-head">
+            <span class="eyebrow" style="margin:0">Плейлист</span>
+            <label class="upload-btn" for="fileInput">+ Загрузить треки</label>
+            <input type="file" id="fileInput" accept="audio/*" multiple hidden>
+          </div>
+          <ul class="playlist-list" id="playlistList">
+            <li class="playlist-empty">Треки ещё не добавлены, любимая — нажми «Загрузить»</li>
+          </ul>
+        </div>
+        <p class="music-note">Файлы загружаются ес чо прямо с телефона или компьютера<br>и хранятся только в этом сеансе к сожалению, у мя нету сервака для такого(.</p>
+      </div>
+    </section>
+
+    <!-- ЭКРАН 4: ПИСЬМО -->
+    <section class="screen" data-screen="letter">
+      <div class="eyebrow">мем грусьный амням</div>
+      <h1 class="screen-title">Хронология</h1>
+      <p class="screen-sub">История, которую мы напишем сами)</p>
+      <div class="timeline">
+        <div class="tl-item">
+          <div class="tl-dot"></div>
+          <div class="tl-date">12.06.2026</div>
+          <div class="tl-text placeholder">Пасиба плесени за тот самый день, пасиба что он оказался рядом)</div>
+        </div>
+        <div class="tl-item">
+          <div class="tl-dot"></div>
+          <div class="tl-date">25.06.2026</div>
+          <div class="tl-text placeholder">день, когда мы отдыхали в рыбице. бля, как же круто было танцевать с тобой медляк)))</div>
+        </div>
+        <div class="tl-item">
+          <div class="tl-dot"></div>
+          <div class="tl-date">26.06.2026</div>
+          <div class="tl-text placeholder">день, когда мы начали встречаться. помню как ждал его больше нового года))</div>
+        </div>
+        <div class="tl-item">
+          <div class="tl-dot"></div>
+          <div class="tl-date">9.07.2026</div>
+          <div class="tl-text placeholder">с датой могу ошибаться, но по моему ты в тот день уехала на месяц в питер, мне биля грустня(</div>
+        </div>
+        <div class="tl-item">
+          <div class="tl-dot"></div>
+          <div class="tl-date">25.07.2026</div>
+          <div class="tl-text placeholder">эту дату я точно помню, ибо не смог тогда тя встретить по приезду с питера (как же я в рот ебал этот город), но я был рад))</div>
+        </div>
+        <div class="tl-item">
+          <div class="tl-dot"></div>
+          <div class="tl-date">31.07.2026</div>
+          <div class="tl-text placeholder">пиздатый уикенд в щелкино))</div>
+        </div>
+        <div class="tl-item">
+          <div class="tl-dot"></div>
+          <div class="tl-date">25.08.2026</div>
+          <div class="tl-text placeholder">этот день не конец, это начало этапа наших отношений. хотел бы я его избежать? определенно, однако тебя я люблю больше и для меня твое будущее - мое будущее тоже</div>
+        </div>
+      </div>
+      <p class="letter-sign">— эта часть будет сто процентов дописываться, обновляться всякими важными событиями, но на сегодня, к сожлению это все</p>
+      <p class="letter-sign">— хотел бы я вписать каждый проведенный с тобой день, да только места на моем компьютере нехватит(</p>
+      <p class="letter-sign">— с любовью, милая❤️</p>
+    </section>
+
+  </main>
+
+  <nav class="tabbar" id="tabbar">
+    <div class="tab-seal" id="seal"></div>
+    <button class="tab active" data-target="home">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 11.5 12 4l9 7.5"/><path d="M5 10v9a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1v-9"/></svg>
+      Главная
+    </button>
+    <button class="tab" data-target="photos">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3.5" y="5" width="17" height="14" rx="2"/><circle cx="9" cy="10.5" r="1.6"/><path d="M4 17l5-5 3.5 3.5L16 12l4 5"/></svg>
+      Фоточки
+    </button>
+    <button class="tab" data-target="music">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M9 18V5l11-2v13"/><circle cx="6.5" cy="18" r="2.5"/><circle cx="17.5" cy="16" r="2.5"/></svg>
+      Музычка
+    </button>
+    <button class="tab" data-target="letter">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3.5" y="5.5" width="17" height="13" rx="2"/><path d="M4 6.5l8 6 8-6"/></svg>
+      Ппослания
+    </button>
+  </nav>
+</div>
+
+<script>
+(function(){
+  var screens = document.querySelectorAll('.screen');
+  var tabs = document.querySelectorAll('.tab');
+  var tabbar = document.getElementById('tabbar');
+  var seal = document.getElementById('seal');
+  var order = ['home','photos','music','letter'];
+  var current = 'home';
+
+  function positionSeal(targetTab){
+    var rect = targetTab.getBoundingClientRect();
+    var barRect = tabbar.getBoundingClientRect();
+    var left = rect.left - barRect.left + rect.width/2 - 20;
+    seal.style.left = left + 'px';
+  }
+
+  function goTo(name){
+    if(name === current) return;
+    var fromIdx = order.indexOf(current);
+    var toIdx = order.indexOf(name);
+    var forward = toIdx > fromIdx;
+
+    screens.forEach(function(s){
+      if(s.dataset.screen === current){
+        s.classList.add('leaving');
+        setTimeout(function(){ s.classList.remove('active','leaving'); }, 260);
+      }
+    });
+    var target = document.querySelector('.screen[data-screen="'+name+'"]');
+    target.style.transform = forward ? 'translateX(24px) scale(0.98)' : 'translateX(-24px) scale(0.98)';
+    requestAnimationFrame(function(){
+      target.classList.add('active');
+      requestAnimationFrame(function(){ target.style.transform = ''; });
+    });
+
+    tabs.forEach(function(t){ t.classList.toggle('active', t.dataset.target === name); });
+    positionSeal(document.querySelector('.tab[data-target="'+name+'"]'));
+    current = name;
+  }
+
+  tabs.forEach(function(tab){
+    tab.addEventListener('click', function(){ goTo(tab.dataset.target); });
+  });
+
+  window.addEventListener('load', function(){
+    positionSeal(document.querySelector('.tab.active'));
+  });
+  window.addEventListener('resize', function(){
+    positionSeal(document.querySelector('.tab[data-target="'+current+'"]'));
+  });
+
+  /* --- плеер: загрузка и воспроизведение собственных треков --- */
+  var playBtn = document.getElementById('playBtn');
+  var playIcon = document.getElementById('playIcon');
+  var vinyl = document.getElementById('vinyl');
+  var progressFill = document.getElementById('progressFill');
+  var progressBar = document.getElementById('progressBar');
+  var audio = document.getElementById('audio');
+  var fileInput = document.getElementById('fileInput');
+  var playlistList = document.getElementById('playlistList');
+  var trackTitle = document.getElementById('trackTitle');
+  var trackArtist = document.getElementById('trackArtist');
+  var timeCurrent = document.getElementById('timeCurrent');
+  var timeTotal = document.getElementById('timeTotal');
+  var prevBtn = document.getElementById('prevBtn');
+  var nextBtn = document.getElementById('nextBtn');
+
+  var tracks = [];   // { name, url }
+  var currentIndex = -1;
+
+  function fmtTime(sec){
+    if(!isFinite(sec) || sec < 0) sec = 0;
+    var m = Math.floor(sec/60);
+    var s = Math.floor(sec%60);
+    return m + ':' + (s < 10 ? '0'+s : s);
+  }
+
+  function cleanName(filename){
+    return filename.replace(/\.[^/.]+$/, '').replace(/[_-]+/g, ' ');
+  }
+
+  function renderPlaylist(){
+    if(tracks.length === 0){
+      playlistList.innerHTML = '<li class="playlist-empty">Треки ещё не добавлены — нажмите «Загрузить»</li>';
+      return;
+    }
+    playlistList.innerHTML = '';
+    tracks.forEach(function(t, i){
+      var li = document.createElement('li');
+      li.className = 'playlist-item' + (i === currentIndex ? ' active' : '');
+      li.innerHTML = '<span class="pl-index">'+(i+1)+'</span><span class="pl-name">'+t.name+'</span>';
+      li.addEventListener('click', function(){ loadTrack(i, true); });
+      playlistList.appendChild(li);
+    });
+  }
+
+  function loadTrack(index, autoplay){
+    if(index < 0 || index >= tracks.length) return;
+    currentIndex = index;
+    var t = tracks[index];
+    audio.src = t.url;
+    trackTitle.textContent = t.name;
+    trackArtist.textContent = 'Ваш плейлист · ' + (index+1) + '/' + tracks.length;
+    renderPlaylist();
+    if(autoplay){
+      audio.play();
+    }
+  }
+
+  function setPlayingUI(isPlaying){
+    vinyl.classList.toggle('playing', isPlaying);
+    playIcon.innerHTML = isPlaying
+      ? '<path d="M7 5h4v14H7zM13 5h4v14h-4z"/>'
+      : '<path d="M8 5v14l11-7z"/>';
+  }
+
+  fileInput.addEventListener('change', function(e){
+    var files = Array.from(e.target.files || []);
+    if(files.length === 0) return;
+    files.forEach(function(file){
+      tracks.push({ name: cleanName(file.name), url: URL.createObjectURL(file) });
+    });
+    renderPlaylist();
+    if(currentIndex === -1){ loadTrack(0, false); }
+    fileInput.value = '';
+  });
+
+  playBtn.addEventListener('click', function(){
+    if(tracks.length === 0){ fileInput.click(); return; }
+    if(audio.paused){ audio.play(); } else { audio.pause(); }
+  });
+
+  prevBtn.addEventListener('click', function(){
+    if(tracks.length < 2) return;
+    var i = (currentIndex - 1 + tracks.length) % tracks.length;
+    loadTrack(i, true);
+  });
+  nextBtn.addEventListener('click', function(){
+    if(tracks.length < 2) return;
+    var i = (currentIndex + 1) % tracks.length;
+    loadTrack(i, true);
+  });
+
+  progressBar.addEventListener('click', function(e){
+    if(!audio.duration) return;
+    var rect = progressBar.getBoundingClientRect();
+    var ratio = (e.clientX - rect.left) / rect.width;
+    audio.currentTime = ratio * audio.duration;
+  });
+
+  audio.addEventListener('play', function(){ setPlayingUI(true); });
+  audio.addEventListener('pause', function(){ setPlayingUI(false); });
+  audio.addEventListener('ended', function(){
+    if(tracks.length > 1){ nextBtn.click(); } else { setPlayingUI(false); }
+  });
+  audio.addEventListener('loadedmetadata', function(){
+    timeTotal.textContent = fmtTime(audio.duration);
+  });
+  audio.addEventListener('timeupdate', function(){
+    timeCurrent.textContent = fmtTime(audio.currentTime);
+    if(audio.duration){
+      progressFill.style.width = (audio.currentTime/audio.duration*100) + '%';
+    }
+  });
+
+  /* --- зелёные лучи на фоне (приглушённые) --- */
+  var rays = document.getElementById('rays');
+  var reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var rayCount = 5;
+  var rayAngles = [-48, -22, 2, 24, 50];
+  for(var r=0; r<rayCount; r++){
+    var ray = document.createElement('span');
+    ray.className = 'ray';
+    ray.style.setProperty('--rr', rayAngles[r] + 'deg');
+    ray.style.setProperty('--rw', (90 + Math.random()*60) + 'px');
+    ray.style.setProperty('--ro', (0.08 + Math.random()*0.07).toFixed(2));
+    ray.style.setProperty('--rd', (22 + Math.random()*14) + 's');
+    rays.appendChild(ray);
+  }
+
+  /* --- фоновые частицы --- */
+  var ambient = document.getElementById('ambient');
+  var count = reduceMotion ? 6 : 16;
+  for(var i=0;i<count;i++){
+    var p = document.createElement('span');
+    p.className = 'petal';
+    var size = 6 + Math.random()*10;
+    p.style.setProperty('--s', size+'px');
+    p.style.left = (Math.random()*100)+'%';
+    p.style.setProperty('--dur', (10+Math.random()*12)+'s');
+    p.style.setProperty('--delay', (Math.random()*14)+'s');
+    p.style.setProperty('--sway', (Math.random()*60-30)+'px');
+    p.style.setProperty('--op', (0.25+Math.random()*0.35).toFixed(2));
+    ambient.appendChild(p);
+  }
+})();
+</script>
+
+</body>
+</html>
