@@ -1019,7 +1019,8 @@ var current = 'home';
 (function(){
   var SUPABASE_CONFIG = {
     url: 'https://zdxmmzyrpiwtutismmud.supabase.co',
-    anonKey: 'REPLACE_WITH_SUPABASE_ANON_KEY'
+    anonKey: '',
+    bucketName: 'photos'
   };
 
   var supabaseClient = null;
@@ -1033,7 +1034,7 @@ var current = 'home';
   var photoFrames = document.querySelectorAll('.photo-frame');
 
   function isSupabaseReady(){
-    return window.supabase && window.supabase.createClient && SUPABASE_CONFIG.anonKey && SUPABASE_CONFIG.anonKey !== 'REPLACE_WITH_SUPABASE_ANON_KEY';
+    return !!(window.supabase && window.supabase.createClient && SUPABASE_CONFIG.anonKey && SUPABASE_CONFIG.anonKey.trim().length > 0);
   }
 
   function ensureSupabaseClient(){
@@ -1120,7 +1121,7 @@ var current = 'home';
     var fileName = 'photos/' + Date.now() + '-' + index + '-' + safeName;
 
     try {
-      var upload = await client.storage.from('photos').upload(fileName, file, {
+      var upload = await client.storage.from(SUPABASE_CONFIG.bucketName).upload(fileName, file, {
         cacheControl: '3600',
         upsert: false
       });
@@ -1130,7 +1131,7 @@ var current = 'home';
         return false;
       }
 
-      var publicUrl = client.storage.from('photos').getPublicUrl(upload.data.path).data.publicUrl;
+      var publicUrl = client.storage.from(SUPABASE_CONFIG.bucketName).getPublicUrl(upload.data.path).data.publicUrl;
       applyPhotoByIndex(index, publicUrl);
       persistPublicUrl(index, publicUrl);
       return true;
@@ -1158,7 +1159,6 @@ var current = 'home';
     var previewUrl = URL.createObjectURL(file);
     applyPhotoByIndex(index, previewUrl);
 
-    var uploaded = false;
     if(isSupabaseReady()){
       uploadToSupabase(file, index).then(function(success){
         if(!success){
