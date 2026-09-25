@@ -776,6 +776,7 @@
   </nav>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 (function(){
 var lockscreen = document.getElementById('lockscreen');
@@ -1014,9 +1015,14 @@ var current = 'home';
     ambient.appendChild(p);
   }
 
-/* --- photo frames: add images and persist in IndexedDB (works on Android browsers) --- */
+/* --- photo frames: upload to Supabase Storage when configured, fallback to IndexedDB --- */
 (function(){
-  // create hidden file input for photos
+  var SUPABASE_CONFIG = {
+    url: 'https://zdxmmzyrpiwtutismmud.supabase.co',
+    anonKey: 'REPLACE_WITH_SUPABASE_ANON_KEY'
+  };
+
+  var supabaseClient = null;
   var photoInput = document.createElement('input');
   photoInput.type = 'file';
   photoInput.accept = 'image/*';
@@ -1025,28 +1031,29 @@ var current = 'home';
   document.body.appendChild(photoInput);
 
   var photoFrames = document.querySelectorAll('.photo-frame');
-  photoFrames.forEach(function(frame, idx){
-    frame.dataset.idx = idx;
-    frame.style.cursor = 'pointer';
-    frame.addEventListener('click', function(){
-      photoInput.dataset.target = idx;
-      photoInput.click();
-    });
-  });
 
-  photoInput.addEventListener('change', function(e){
-    var file = (e.target.files && e.target.files[0]) || null;
-    if(!file) return;
-    var idx = e.target.dataset.target;
-    var url = URL.createObjectURL(file);
-    var frame = document.querySelector('.photo-frame[data-idx="'+idx+'"]');
-    if(frame){
-      frame.style.backgroundImage = 'url("'+url+'")';
-      frame.classList.remove('empty');
+  function isSupabaseReady(){
+    return window.supabase && window.supabase.createClient && SUPABASE_CONFIG.anonKey && SUPABASE_CONFIG.anonKey !== 'REPLACE_WITH_SUPABASE_ANON_KEY';
+  }
+
+  function ensureSupabaseClient(){
+    if(!isSupabaseReady()) return null;
+    if(!supabaseClient){
+      supabaseClient = window.supabase.createClient(SUPABASE_CONFIG.url, SUPABASE_CONFIG.anonKey);
     }
-    savePhoto(idx, file);
-    photoInput.value = '';
-  });
+    return supabaseClient;
+  }
+
+  function setFrameBackground(frame, imageUrl){
+    if(!frame) return;
+    frame.style.backgroundImage = 'url("'+ imageUrl +'")';
+    frame.classList.remove('empty');
+  }
+
+  function applyPhotoByIndex(index, imageUrl){
+    var frame = document.querySelector('.photo-frame[data-idx="'+index+'"]');
+    if(frame){ setFrameBackground(frame, imageUrl); }
+  }
 
   function openPhotosDB(){
     return new Promise(function(resolve, reject){
@@ -1060,17 +1067,17 @@ var current = 'home';
     });
   }
 
-  function savePhoto(key, file){
+  function saveLocalPhoto(key, file){
     openPhotosDB().then(function(db){
       var tx = db.transaction('photos','readwrite');
       var store = tx.objectStore('photos');
       var putReq = store.put(file, 'photo-'+key);
       putReq.onsuccess = function(){ try{ db.close(); }catch(e){} };
-      putReq.onerror = function(e){ console.error('savePhoto error', e); };
+      putReq.onerror = function(e){ console.error('saveLocalPhoto error', e); };
     }).catch(function(err){ console.error('openPhotosDB error', err); });
   }
 
-  function loadPhotos(){
+  function loadLocalPhotos(){
     openPhotosDB().then(function(db){
       var tx = db.transaction('photos','readonly');
       var store = tx.objectStore('photos');
@@ -1082,18 +1089,96 @@ var current = 'home';
           if(blob){
             try{
               var url = URL.createObjectURL(blob);
-              frame.style.backgroundImage = 'url("'+url+'")';
-              frame.classList.remove('empty');
+              setFrameBackground(frame, url);
             }catch(e){ console.error(e); }
           }
         };
       });
       tx.oncomplete = function(){ try{ db.close(); }catch(e){} };
-    }).catch(function(err){ console.error('loadPhotos error', err); });
+    }).catch(function(err){ console.error('loadLocalPhotos error', err); });
   }
 
-  // load previously saved photos on startup
-  loadPhotos();
+  function persistPublicUrl(index, url){
+    try{
+      localStorage.setItem('love-app-photo-'+index, url);
+    }catch(err){ console.error('localStorage photo persist error', err); }
+  }
+
+  function hydratePublicUrls(){
+    photoFrames.forEach(function(frame){
+      var idx = frame.dataset.idx;
+      var url = localStorage.getItem('love-app-photo-'+idx);
+      if(url){ setFrameBackground(frame, url); }
+    });
+  }
+
+  async function uploadToSupabase(file, index){
+    var client = ensureSupabaseClient();
+    if(!client) return false;
+
+    var safeName = (file.name || 'photo').replace(/[^a-zA-Z0-9._-]/g, '_');
+    var fileName = 'photos/' + Date.now() + '-' + index + '-' + safeName;
+
+    try {
+      var upload = await client.storage.from('photos').upload(fileName, file, {
+        cacheControl: '3600',
+        upsert: false
+      });
+
+      if(upload.error){
+        console.error('Supabase upload error', upload.error);
+        return false;
+      }
+
+      var publicUrl = client.storage.from('photos').getPublicUrl(upload.data.path).data.publicUrl;
+      applyPhotoByIndex(index, publicUrl);
+      persistPublicUrl(index, publicUrl);
+      return true;
+    }catch(err){
+      console.error('Supabase upload exception', err);
+      return false;
+    }
+  }
+
+  photoFrames.forEach(function(frame, idx){
+    frame.dataset.idx = idx;
+    frame.style.cursor = 'pointer';
+    frame.addEventListener('click', function(){
+      photoInput.dataset.target = idx;
+      photoInput.click();
+    });
+  });
+
+  photoInput.addEventListener('change', function(e){
+    var file = (e.target.files && e.target.files[0]) || null;
+    if(!file) return;
+
+    var idx = e.target.dataset.target;
+    var index = Number(idx);
+    var previewUrl = URL.createObjectURL(file);
+    applyPhotoByIndex(index, previewUrl);
+
+    var uploaded = false;
+    if(isSupabaseReady()){
+      uploadToSupabase(file, index).then(function(success){
+        if(!success){
+          saveLocalPhoto(index, file);
+          applyPhotoByIndex(index, previewUrl);
+        }
+      });
+    } else {
+      saveLocalPhoto(index, file);
+    }
+
+    photoInput.value = '';
+  });
+
+  // start with public URLs if Supabase is configured, otherwise local IndexedDB fallback
+  if(isSupabaseReady()){
+    hydratePublicUrls();
+  } else {
+    loadLocalPhotos();
+  }
 })();
 
 })();
