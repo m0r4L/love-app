@@ -1042,6 +1042,7 @@ var current = 'home';
   };
 
   var supabaseClient = null;
+  var stagedPhotos = {};
   var photoInput = document.createElement('input');
   photoInput.type = 'file';
   photoInput.accept = 'image/*';
@@ -1049,7 +1050,11 @@ var current = 'home';
   photoInput.hidden = true;
   document.body.appendChild(photoInput);
 
-  var photoFrames = document.querySelectorAll('.photo-frame');
+  var photoFrames = Array.prototype.slice.call(document.querySelectorAll('.photo-frame'));
+
+  function frameKey(index){
+    return 'love-app-photo-' + index;
+  }
 
   function isSupabaseReady(){
     return !!(window.supabase && window.supabase.createClient && SUPABASE_CONFIG.anonKey && SUPABASE_CONFIG.anonKey.trim().length > 0);
@@ -1071,13 +1076,21 @@ var current = 'home';
   }
 
   function setFrameBackground(frame, imageUrl){
-    if(!frame) return;
-    frame.style.backgroundImage = 'url("'+ imageUrl +'")';
+    if(!frame || !imageUrl) return;
+    frame.style.backgroundImage = 'url("' + imageUrl + '")';
     frame.classList.remove('empty');
+    frame.classList.add('has-photo');
+  }
+
+  function clearFrameBackground(frame){
+    if(!frame) return;
+    frame.style.backgroundImage = '';
+    frame.classList.remove('has-photo');
+    frame.classList.add('empty');
   }
 
   function applyPhotoByIndex(index, imageUrl){
-    var frame = document.querySelector('.photo-frame[data-idx="'+index+'"]');
+    var frame = document.querySelector('.photo-frame[data-idx="' + index + '"]');
     if(frame){ setFrameBackground(frame, imageUrl); }
   }
 
@@ -1126,15 +1139,47 @@ var current = 'home';
 
   function persistPublicUrl(index, url){
     try{
-      localStorage.setItem('love-app-photo-'+index, url);
+      localStorage.setItem(frameKey(index), url || '');
     }catch(err){ console.error('localStorage photo persist error', err); }
   }
 
   function hydratePublicUrls(){
     photoFrames.forEach(function(frame){
-      var idx = frame.dataset.idx;
-      var url = localStorage.getItem('love-app-photo-'+idx);
+      var idx = Number(frame.dataset.idx);
+      var url = localStorage.getItem(frameKey(idx));
       if(url){ setFrameBackground(frame, url); }
+    });
+  }
+
+  function restoreFrameFromIndexedDB(frame){
+    var idx = Number(frame.dataset.idx);
+    openPhotosDB().then(function(db){
+      var tx = db.transaction('photos', 'readonly');
+      var store = tx.objectStore('photos');
+      var getReq = store.get('photo-' + idx);
+      getReq.onsuccess = function(){
+        var blob = getReq.result;
+        if(blob){
+          try{
+            var url = URL.createObjectURL(blob);
+            setFrameBackground(frame, url);
+            persistPublicUrl(idx, url);
+          }catch(e){ console.error('restoreFrameFromIndexedDB error', e); }
+        }
+      };
+      tx.oncomplete = function(){ try{ db.close(); }catch(e){} };
+    }).catch(function(err){ console.error('restoreFrameFromIndexedDB open error', err); });
+  }
+
+  function restoreAllFrames(){
+    photoFrames.forEach(function(frame){
+      var idx = Number(frame.dataset.idx);
+      var url = localStorage.getItem(frameKey(idx));
+      if(url){
+        setFrameBackground(frame, url);
+        return;
+      }
+      restoreFrameFromIndexedDB(frame);
     });
   }
 
@@ -1143,10 +1188,10 @@ var current = 'home';
     if(!client) return false;
 
     var safeName = (file.name || 'photo').replace(/[^a-zA-Z0-9._-]/g, '_');
-    var fileName = 'photos/' + Date.now() + '-' + index + '-' + safeName;
+    var objectPath = String(index) + '/' + Date.now() + '-' + safeName;
 
     try {
-      var upload = await client.storage.from(SUPABASE_CONFIG.bucketName).upload(fileName, file, {
+      var upload = await client.storage.from(SUPABASE_CONFIG.bucketName).upload(objectPath, file, {
         cacheControl: '3600',
         upsert: false
       });
@@ -1159,6 +1204,7 @@ var current = 'home';
       var publicUrl = client.storage.from(SUPABASE_CONFIG.bucketName).getPublicUrl(upload.data.path).data.publicUrl;
       applyPhotoByIndex(index, publicUrl);
       persistPublicUrl(index, publicUrl);
+      saveLocalPhoto(index, file);
       return true;
     }catch(err){
       console.error('Supabase upload exception', err);
@@ -1166,13 +1212,10 @@ var current = 'home';
     }
   }
 
-  var stagedPhotos = {}; // files waiting to be saved to server
-
   photoFrames.forEach(function(frame, idx){
-    frame.dataset.idx = idx;
+    frame.dataset.idx = String(idx);
     frame.style.cursor = 'pointer';
 
-    // create save button per frame (hidden until a new file is staged)
     var saveBtn = document.createElement('button');
     saveBtn.className = 'save-photo-btn';
     saveBtn.type = 'button';
@@ -1181,19 +1224,19 @@ var current = 'home';
     frame.appendChild(saveBtn);
 
     frame.addEventListener('click', function(){
-      photoInput.dataset.target = idx;
+      photoInput.dataset.target = String(idx);
       photoInput.click();
     });
 
-    // handle save click
     saveBtn.addEventListener('click', function(ev){
       ev.stopPropagation();
       var index = Number(frame.dataset.idx);
       var file = stagedPhotos[index];
       if(!file) return;
-      // show a temporary loading state
+
       saveBtn.textContent = 'Сохранение...';
       saveBtn.disabled = true;
+
       if(isSupabaseReady()){
         uploadToSupabase(file, index).then(function(success){
           if(success){
@@ -1201,7 +1244,6 @@ var current = 'home';
             frame.classList.add('has-photo');
             saveBtn.style.display = 'none';
           } else {
-            // fallback to local
             saveLocalPhoto(index, file);
             frame.classList.add('has-photo');
             saveBtn.style.display = 'none';
@@ -1229,29 +1271,24 @@ var current = 'home';
     var file = (e.target.files && e.target.files[0]) || null;
     if(!file) return;
 
-    var idx = e.target.dataset.target;
-    var index = Number(idx);
+    var idx = Number(e.target.dataset.target);
     var previewUrl = URL.createObjectURL(file);
-    applyPhotoByIndex(index, previewUrl);
+    applyPhotoByIndex(idx, previewUrl);
 
-    // stage file for explicit save
-    stagedPhotos[index] = file;
-    var frame = document.querySelector('.photo-frame[data-idx="'+index+'"]');
+    stagedPhotos[idx] = file;
+    var frame = document.querySelector('.photo-frame[data-idx="' + idx + '"]');
     if(frame){
       var btn = frame.querySelector('.save-photo-btn');
       if(btn){ btn.style.display = 'block'; }
-      // visual cue: remove empty state but keep has-photo only after saving
       frame.classList.remove('empty');
     }
 
     photoInput.value = '';
   });
 
-  // start with public URLs if Supabase is configured, otherwise local IndexedDB fallback
+  restoreAllFrames();
   if(isSupabaseReady()){
     hydratePublicUrls();
-  } else {
-    loadLocalPhotos();
   }
 })();
 
