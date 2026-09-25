@@ -1013,6 +1013,89 @@ var current = 'home';
     p.style.setProperty('--op', (0.25+Math.random()*0.35).toFixed(2));
     ambient.appendChild(p);
   }
+
+/* --- photo frames: add images and persist in IndexedDB (works on Android browsers) --- */
+(function(){
+  // create hidden file input for photos
+  var photoInput = document.createElement('input');
+  photoInput.type = 'file';
+  photoInput.accept = 'image/*';
+  photoInput.id = 'photoFileInput';
+  photoInput.hidden = true;
+  document.body.appendChild(photoInput);
+
+  var photoFrames = document.querySelectorAll('.photo-frame');
+  photoFrames.forEach(function(frame, idx){
+    frame.dataset.idx = idx;
+    frame.style.cursor = 'pointer';
+    frame.addEventListener('click', function(){
+      photoInput.dataset.target = idx;
+      photoInput.click();
+    });
+  });
+
+  photoInput.addEventListener('change', function(e){
+    var file = (e.target.files && e.target.files[0]) || null;
+    if(!file) return;
+    var idx = e.target.dataset.target;
+    var url = URL.createObjectURL(file);
+    var frame = document.querySelector('.photo-frame[data-idx="'+idx+'"]');
+    if(frame){
+      frame.style.backgroundImage = 'url("'+url+'")';
+      frame.classList.remove('empty');
+    }
+    savePhoto(idx, file);
+    photoInput.value = '';
+  });
+
+  function openPhotosDB(){
+    return new Promise(function(resolve, reject){
+      var req = indexedDB.open('love-app-photos', 1);
+      req.onupgradeneeded = function(ev){
+        var db = ev.target.result;
+        if(!db.objectStoreNames.contains('photos')) db.createObjectStore('photos');
+      };
+      req.onsuccess = function(ev){ resolve(ev.target.result); };
+      req.onerror = function(ev){ reject(ev.target.error); };
+    });
+  }
+
+  function savePhoto(key, file){
+    openPhotosDB().then(function(db){
+      var tx = db.transaction('photos','readwrite');
+      var store = tx.objectStore('photos');
+      var putReq = store.put(file, 'photo-'+key);
+      putReq.onsuccess = function(){ try{ db.close(); }catch(e){} };
+      putReq.onerror = function(e){ console.error('savePhoto error', e); };
+    }).catch(function(err){ console.error('openPhotosDB error', err); });
+  }
+
+  function loadPhotos(){
+    openPhotosDB().then(function(db){
+      var tx = db.transaction('photos','readonly');
+      var store = tx.objectStore('photos');
+      photoFrames.forEach(function(frame){
+        var k = 'photo-'+frame.dataset.idx;
+        var getReq = store.get(k);
+        getReq.onsuccess = function(){
+          var blob = getReq.result;
+          if(blob){
+            try{
+              var url = URL.createObjectURL(blob);
+              frame.style.backgroundImage = 'url("'+url+'")';
+              frame.classList.remove('empty');
+            }catch(e){ console.error(e); }
+          }
+        };
+      });
+      tx.oncomplete = function(){ try{ db.close(); }catch(e){} };
+    }).catch(function(err){ console.error('loadPhotos error', err); });
+  }
+
+  // load previously saved photos on startup
+  loadPhotos();
+})();
+
 })();
 </script>
 
