@@ -381,6 +381,23 @@
     font-size:16px;
     color: var(--gold-soft);
   }
+  /* hide the plus when frame is not empty */
+  .photo-frame:not(.empty) .plus{ display: none; }
+  .photo-frame.has-photo{ border: none; }
+  .save-photo-btn{
+    position: absolute;
+    right: 8px;
+    bottom: 8px;
+    padding: 8px 10px;
+    border-radius: 12px;
+    border: none;
+    background: linear-gradient(145deg, var(--gold-soft), var(--gold));
+    color: var(--bg);
+    font-size: 12px;
+    cursor: pointer;
+    box-shadow: 0 6px 18px rgba(10,4,10,0.5);
+  }
+  .save-photo-btn:active{ transform: translateY(1px); }
 
   /* ---------- MUSIC ---------- */
   .player-wrap{
@@ -777,6 +794,7 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>window.__SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpkeG1tenlycGl3dHV0aXNtbXVkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTAyODY3MjMsImV4cCI6MjEwNTg2MjcyM30.N6frv62hdZwcHEKda8rhBagI_nazygnNy8N3OizmVh8";</script>
 <script>
 (function(){
 var lockscreen = document.getElementById('lockscreen');
@@ -1024,6 +1042,7 @@ var current = 'home';
   };
 
   var supabaseClient = null;
+  var stagedPhotos = {};
   var photoInput = document.createElement('input');
   photoInput.type = 'file';
   photoInput.accept = 'image/*';
@@ -1031,13 +1050,24 @@ var current = 'home';
   photoInput.hidden = true;
   document.body.appendChild(photoInput);
 
-  var photoFrames = document.querySelectorAll('.photo-frame');
+  var photoFrames = Array.prototype.slice.call(document.querySelectorAll('.photo-frame'));
+
+  function frameKey(index){
+    return 'love-app-photo-' + index;
+  }
 
   function isSupabaseReady(){
     return !!(window.supabase && window.supabase.createClient && SUPABASE_CONFIG.anonKey && SUPABASE_CONFIG.anonKey.trim().length > 0);
   }
 
   function ensureSupabaseClient(){
+    // allow injecting anon key at runtime via window.__SUPABASE_ANON for local testing
+    try{
+      if((!SUPABASE_CONFIG.anonKey || SUPABASE_CONFIG.anonKey.trim().length === 0) && window.__SUPABASE_ANON){
+        SUPABASE_CONFIG.anonKey = window.__SUPABASE_ANON;
+      }
+    }catch(e){}
+
     if(!isSupabaseReady()) return null;
     if(!supabaseClient){
       supabaseClient = window.supabase.createClient(SUPABASE_CONFIG.url, SUPABASE_CONFIG.anonKey);
@@ -1046,13 +1076,21 @@ var current = 'home';
   }
 
   function setFrameBackground(frame, imageUrl){
-    if(!frame) return;
-    frame.style.backgroundImage = 'url("'+ imageUrl +'")';
+    if(!frame || !imageUrl) return;
+    frame.style.backgroundImage = 'url("' + imageUrl + '")';
     frame.classList.remove('empty');
+    frame.classList.add('has-photo');
+  }
+
+  function clearFrameBackground(frame){
+    if(!frame) return;
+    frame.style.backgroundImage = '';
+    frame.classList.remove('has-photo');
+    frame.classList.add('empty');
   }
 
   function applyPhotoByIndex(index, imageUrl){
-    var frame = document.querySelector('.photo-frame[data-idx="'+index+'"]');
+    var frame = document.querySelector('.photo-frame[data-idx="' + index + '"]');
     if(frame){ setFrameBackground(frame, imageUrl); }
   }
 
@@ -1101,15 +1139,47 @@ var current = 'home';
 
   function persistPublicUrl(index, url){
     try{
-      localStorage.setItem('love-app-photo-'+index, url);
+      localStorage.setItem(frameKey(index), url || '');
     }catch(err){ console.error('localStorage photo persist error', err); }
   }
 
   function hydratePublicUrls(){
     photoFrames.forEach(function(frame){
-      var idx = frame.dataset.idx;
-      var url = localStorage.getItem('love-app-photo-'+idx);
+      var idx = Number(frame.dataset.idx);
+      var url = localStorage.getItem(frameKey(idx));
       if(url){ setFrameBackground(frame, url); }
+    });
+  }
+
+  function restoreFrameFromIndexedDB(frame){
+    var idx = Number(frame.dataset.idx);
+    openPhotosDB().then(function(db){
+      var tx = db.transaction('photos', 'readonly');
+      var store = tx.objectStore('photos');
+      var getReq = store.get('photo-' + idx);
+      getReq.onsuccess = function(){
+        var blob = getReq.result;
+        if(blob){
+          try{
+            var url = URL.createObjectURL(blob);
+            setFrameBackground(frame, url);
+            persistPublicUrl(idx, url);
+          }catch(e){ console.error('restoreFrameFromIndexedDB error', e); }
+        }
+      };
+      tx.oncomplete = function(){ try{ db.close(); }catch(e){} };
+    }).catch(function(err){ console.error('restoreFrameFromIndexedDB open error', err); });
+  }
+
+  function restoreAllFrames(){
+    photoFrames.forEach(function(frame){
+      var idx = Number(frame.dataset.idx);
+      var url = localStorage.getItem(frameKey(idx));
+      if(url){
+        setFrameBackground(frame, url);
+        return;
+      }
+      restoreFrameFromIndexedDB(frame);
     });
   }
 
@@ -1118,10 +1188,10 @@ var current = 'home';
     if(!client) return false;
 
     var safeName = (file.name || 'photo').replace(/[^a-zA-Z0-9._-]/g, '_');
-    var fileName = 'photos/' + Date.now() + '-' + index + '-' + safeName;
+    var objectPath = String(index) + '/' + Date.now() + '-' + safeName;
 
     try {
-      var upload = await client.storage.from(SUPABASE_CONFIG.bucketName).upload(fileName, file, {
+      var upload = await client.storage.from(SUPABASE_CONFIG.bucketName).upload(objectPath, file, {
         cacheControl: '3600',
         upsert: false
       });
@@ -1134,6 +1204,7 @@ var current = 'home';
       var publicUrl = client.storage.from(SUPABASE_CONFIG.bucketName).getPublicUrl(upload.data.path).data.publicUrl;
       applyPhotoByIndex(index, publicUrl);
       persistPublicUrl(index, publicUrl);
+      saveLocalPhoto(index, file);
       return true;
     }catch(err){
       console.error('Supabase upload exception', err);
@@ -1142,11 +1213,57 @@ var current = 'home';
   }
 
   photoFrames.forEach(function(frame, idx){
-    frame.dataset.idx = idx;
+    frame.dataset.idx = String(idx);
     frame.style.cursor = 'pointer';
+
+    var saveBtn = document.createElement('button');
+    saveBtn.className = 'save-photo-btn';
+    saveBtn.type = 'button';
+    saveBtn.textContent = 'Сохранить';
+    saveBtn.style.display = 'none';
+    frame.appendChild(saveBtn);
+
     frame.addEventListener('click', function(){
-      photoInput.dataset.target = idx;
+      photoInput.dataset.target = String(idx);
       photoInput.click();
+    });
+
+    saveBtn.addEventListener('click', function(ev){
+      ev.stopPropagation();
+      var index = Number(frame.dataset.idx);
+      var file = stagedPhotos[index];
+      if(!file) return;
+
+      saveBtn.textContent = 'Сохранение...';
+      saveBtn.disabled = true;
+
+      if(isSupabaseReady()){
+        uploadToSupabase(file, index).then(function(success){
+          if(success){
+            delete stagedPhotos[index];
+            frame.classList.add('has-photo');
+            saveBtn.style.display = 'none';
+          } else {
+            saveLocalPhoto(index, file);
+            frame.classList.add('has-photo');
+            saveBtn.style.display = 'none';
+          }
+          saveBtn.textContent = 'Сохранить';
+          saveBtn.disabled = false;
+        }).catch(function(){
+          saveLocalPhoto(index, file);
+          frame.classList.add('has-photo');
+          saveBtn.style.display = 'none';
+          saveBtn.textContent = 'Сохранить';
+          saveBtn.disabled = false;
+        });
+      } else {
+        saveLocalPhoto(index, file);
+        frame.classList.add('has-photo');
+        saveBtn.style.display = 'none';
+        saveBtn.textContent = 'Сохранить';
+        saveBtn.disabled = false;
+      }
     });
   });
 
@@ -1154,30 +1271,24 @@ var current = 'home';
     var file = (e.target.files && e.target.files[0]) || null;
     if(!file) return;
 
-    var idx = e.target.dataset.target;
-    var index = Number(idx);
+    var idx = Number(e.target.dataset.target);
     var previewUrl = URL.createObjectURL(file);
-    applyPhotoByIndex(index, previewUrl);
+    applyPhotoByIndex(idx, previewUrl);
 
-    if(isSupabaseReady()){
-      uploadToSupabase(file, index).then(function(success){
-        if(!success){
-          saveLocalPhoto(index, file);
-          applyPhotoByIndex(index, previewUrl);
-        }
-      });
-    } else {
-      saveLocalPhoto(index, file);
+    stagedPhotos[idx] = file;
+    var frame = document.querySelector('.photo-frame[data-idx="' + idx + '"]');
+    if(frame){
+      var btn = frame.querySelector('.save-photo-btn');
+      if(btn){ btn.style.display = 'block'; }
+      frame.classList.remove('empty');
     }
 
     photoInput.value = '';
   });
 
-  // start with public URLs if Supabase is configured, otherwise local IndexedDB fallback
+  restoreAllFrames();
   if(isSupabaseReady()){
     hydratePublicUrls();
-  } else {
-    loadLocalPhotos();
   }
 })();
 
